@@ -5,7 +5,7 @@ module Frontapp
         when 400 then BadRequestError
         when 404 then NotFoundError
         when 409 then ConflictError
-        else self.class
+        else self
         end
       error_class.new(response)
     end
