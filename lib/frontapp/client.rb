@@ -37,12 +37,12 @@ module Frontapp
     include Frontapp::Client::Exports
 
     def initialize(options={})
-      auth_token = options[:auth_token]
-      user_agent = options[:user_agent] || "Frontapp Ruby Gem #{VERSION}"
+      @@auth_token = options[:auth_token]
+      @@user_agent = options[:user_agent] || "Frontapp Ruby Gem #{VERSION}"
       @headers = HTTP.headers({
         Accept: "application/json",
-        Authorization: "Bearer #{auth_token}",
-        "User-Agent": user_agent
+        Authorization: "Bearer #{@@auth_token}",
+        "User-Agent": @@user_agent
       })
     end
 
@@ -75,6 +75,32 @@ module Frontapp
 
     def create(path, body)
       res = @headers.post("#{base_url}#{path}", json: body)
+      response = JSON.parse(res.to_s)
+      if !res.status.success?
+        raise Error.from_response(res)
+      end
+      response
+    end
+
+    def create_with_multipart(path, body)
+      @headers = HTTP.headers({
+        Accept: "multipart/form-data",
+        Authorization: "Bearer #{@@auth_token}",
+        "User-Agent": @@user_agent
+      })
+
+      def h2a(value, key = '')
+        if value.is_a? Hash
+          value.keys.map do |k| h2a(value[k], key.empty? ? k : "#{key}.#{k}") end
+        elsif value.is_a? Array
+          value.map.with_index do |x, i| h2a(x, "#{key}[#{i}]") end
+        else
+          [key, value]
+        end
+      end
+      form = h2a(body).flatten.each_slice(2).to_a
+
+      res = @headers.post("#{base_url}#{path}", form: form)
       response = JSON.parse(res.to_s)
       if !res.status.success?
         raise Error.from_response(res)
